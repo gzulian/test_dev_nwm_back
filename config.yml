@@ -16,5 +16,5 @@ db:
             username: postgres
             password: mVC0vq3Iu4TiHbySVlkB
             database: tef-test
-            dialect: postgres
+            nameconn: connPgsql
             lang: ES

@@ -1,17 +1,6 @@
 const conn = require('../../repositories/repository_mongo');
 
 
-
-//MYSQL
-// exports.Login = async () =>{
-//     try{
-//         return await conn.db.User.find({email: "gzuliany@gmail.com",password:"123"});
-//     }catch(err){
-//         console.log(" err orm-user.GetAll = ", err);
-//         return await {err:{code: 123, messsage: err}}
-//     }
-// }
-
 exports.GetById = async ( Id ) =>{
     try{
         return await conn.db.connMongo.User.findOne({ userId: Id });
@@ -38,7 +27,7 @@ exports.Store = async ( Name, email ) =>{
     }
 }
 
-exports.UpdateTransfersById = async ( Id,transfers,addressees ) =>{
+exports.UpdateTransfersById = async ( Id,transfers ) =>{
     try{
         await conn.db.connMongo.User.findOneAndUpdate(
             {
@@ -49,7 +38,7 @@ exports.UpdateTransfersById = async ( Id,transfers,addressees ) =>{
         return true
     }catch(err){
         console.log(" err orm-user.Store = ", err);
-        return await {err:{code: 500, messsage: err}}
+        return  {err:{code: 500, messsage: err}}
     }
 }
 

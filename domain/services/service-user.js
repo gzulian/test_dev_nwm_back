@@ -1,11 +1,13 @@
 //const magic = require('../../util/magic');
 const enum_ = require('../../util/enum');
 const ormUser = require('../orm/orm_user_mongodb');
+const repoUserPg = require('../../repositories/repository_aws_pgsql');
 //const { isUuid } = require('uuidv4');
 
 
 const jwt = require('jsonwebtoken');
 const dotenv = require('dotenv');
+const { BaseException } = require('@angular-devkit/core');
 dotenv.config({ path: './.env' });
 
 exports.AuthenticateToken = async (req, res) =>{
@@ -31,23 +33,99 @@ exports.AuthenticateToken = async (req, res) =>{
     }
 }
 
-/*exports.Login = async (req, res) =>{
+exports.Login = async (req, res) =>{
     let status = 'Success', errorCode ='', message='', data='', statusCode=0, resp={};
     try{
-        respOrm = await ormUser.GetAll();
+        respOrm =await repoUserPg.pgsql_db.any('SELECT * FROM "User" ')
+        console.log(respOrm);
+
+
         if(respOrm.err){
             status = 'Failure', errorCode = respOrm.err.code, message = respOrm.err.messsage, statusCode = enum_.CODE_BAD_REQUEST;
         }else{
             message = 'Success Response', data = respOrm, statusCode = data.length > 0 ? enum_.CODE_OK : enum_.CODE_NO_CONTENT;
         }
-        resp = await magic.ResponseService(status,errorCode,message,data);
+        //resp = await magic.ResponseService(status,errorCode,message,data);
         return res.status(statusCode).send(resp);
     } catch(err) {
         console.log("err = ", err);
-        resp = await magic.ResponseService('Failure',enum_.CRASH_LOGIC,err,'');
+        //resp = await magic.ResponseService('Failure',enum_.CRASH_LOGIC,err,'');
         return res.status(enum_.CODE_INTERNAL_SERVER_ERROR).send(resp);
     }
-}*/
+}
+
+exports.Transfer = async (req, res,next) =>{
+    const user_id = 1;
+    let status = 'Success', errorCode ='', message='', data='', statusCode=0, resp={};
+    repoUserPg.pgsql_db.tx(async t => {
+        respCurrentBalance = await  t.one(`SELECT current_balance   FROM "User" WHERE "id" = $1`,[1])
+        const current_balance = parseInt(respCurrentBalance.current_balance);
+        const transfer_amount = parseInt(req.body.amount);
+        console.log(current_balance , transfer_amount);
+        if (current_balance >= transfer_amount){
+            const new_balance = current_balance - transfer_amount;
+            const now =  new Date(Date.now()).toISOString().replace('T',' ').replace('Z','')
+            const transfer = await t.one(`
+                INSERT INTO 
+                    transfer(amount, user_id, "createdAt" , new_balance, addressee_account, addressee_rut)
+                VALUES($1,$2,$3,$4,$5,$6)
+                RETURNING id`,
+                [
+                    transfer_amount,
+                    user_id,
+                    now,
+                    new_balance,
+                    req.body.addressee_account,
+                    req.body.addressee_rut,
+                    req.body.addressee_name
+                ]
+            );
+
+            await t.query(`UPDATE "User" SET current_balance = $1 WHERE id = $2 `,[new_balance,user_id])
+            await ormUser.UpdateTransfersById(user_id, {
+                transfer_id:transfer.id,
+                amount:transfer_amount,
+                user_id:user_id,
+                createdAt:now,
+                new_balance:new_balance,
+                addressee_account:req.body.addressee_account,
+                addressee_rut:req.body.addressee_rut,
+                addressee_name :req.body.addressee_name
+            });
+            return {transfer};
+        }else{
+            throw new Error("exced")
+        }
+    })
+    .then ( ({transfer})  => {
+        tran_id = transfer.id;
+        message = 'Success Response', data = transfer, statusCode =  enum_.CODE_OK;
+        resp = {
+            status:status,
+            message:message,
+            data:data
+        }
+        repoUserPg.pgsql_db.$pool.end();
+        return res.status(statusCode).send(resp);
+    })
+    .catch(error => {
+        status = 'Failure', message = "error", statusCode = enum_.CODE_BAD_REQUEST,data=error   ;
+        resp = {
+            status:status,
+            message:message,
+            data:data
+        }
+        return res.status(statusCode).send(resp);
+        
+    });
+   
+   
+   
+}
+
+
+
+
 exports.Store = async (req, res) =>{
     let status = 'Success', errorCode ='', message='', data='', statusCode=0, resp={};
     try{

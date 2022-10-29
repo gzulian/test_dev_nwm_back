@@ -21,6 +21,8 @@
     "mongoose": "^6.7.0",
     "morgan": "~1.9.1",
     "pg": "^8.8.0",
+    "pg-promise": "^10.12.1",
+    "postgres-date": "^2.1.0",
     "pug": "2.0.0-beta11",
     "require-yml": "^2.0.0",
     "sequelize": "^6.25.3",
